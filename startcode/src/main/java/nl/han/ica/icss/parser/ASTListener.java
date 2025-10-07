@@ -6,6 +6,8 @@ import java.util.Stack;
 import nl.han.ica.datastructures.IHANStack;
 import nl.han.ica.icss.ast.*;
 import nl.han.ica.icss.ast.literals.*;
+import nl.han.ica.icss.parser.ICSSParser;
+
 import nl.han.ica.icss.ast.operations.AddOperation;
 import nl.han.ica.icss.ast.operations.MultiplyOperation;
 import nl.han.ica.icss.ast.operations.SubtractOperation;
@@ -31,5 +33,25 @@ public class ASTListener extends ICSSBaseListener {
     public AST getAST() {
         return ast;
     }
+
+    @Override
+    public void enterStylesheet (ICSSParser.styleruleContext ctx){
+    Stylerule stylerule = new Stylerule();
+    currentContainer.push(stylerule);
+    }
+
+
+    @Override
+    public void exitStylerule (ICSSParser.styleruleContext ctx){
+        Stylerule stylerule = (Stylerule)currentContainer.pop();
+        currentContainer.peek().addChild(stylerule);
+    }
+    @Override
+    public void exitStyleSheet(ICSSParser.StylesheetContext ctx) {
+        Stylesheet stylesheet = (stylesheet) currentContainer.pop();
+        ast.setRoot(stylesheet);
+    }
+
+
     
 }
