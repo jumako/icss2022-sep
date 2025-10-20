@@ -23,7 +23,6 @@ COLOR: '#' [0-9a-f] [0-9a-f] [0-9a-f] [0-9a-f] [0-9a-f] [0-9a-f];
 //Specific identifiers for id's and css classes
 ID_IDENT: '#' [a-z0-9\-]+;
 CLASS_IDENT: '.' [a-z0-9\-]+;
-TYPE_IDENT: [a-z0-9];
 
 //General identifiers
 LOWER_IDENT: [a-z] [a-z0-9\-]*;
@@ -47,12 +46,13 @@ ASSIGNMENT_OPERATOR: ':=';
 
 
 //--- PARSER: ---
-stylesheet: stylerule;
-stylerule: selector OPEN_BRACE declaration CLOSE_BRACE;
+stylesheet: stylerule* EOF;
+stylerule: selector OPEN_BRACE declaration* CLOSE_BRACE;
 selector:
     LOWER_IDENT #tagSelector |
     CLASS_IDENT #classSelector |
     ID_IDENT #idSelector;
+
 declaration: property COLON expression SEMICOLON;
 property: LOWER_IDENT;
 expression:
