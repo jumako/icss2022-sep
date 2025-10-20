@@ -35,23 +35,37 @@ public class ASTListener extends ICSSBaseListener {
     }
 
     @Override
-    public void enterStylesheet (ICSSParser.styleruleContext ctx){
-    Stylerule stylerule = new Stylerule();
-    currentContainer.push(stylerule);
+    public void enterStylesheet (ICSSParser.StyleruleContext ctx){
+    currentContainer.push(new Stylerule());
     }
 
-
-    @Override
-    public void exitStylerule (ICSSParser.styleruleContext ctx){
-        Stylerule stylerule = (Stylerule)currentContainer.pop();
-        currentContainer.peek().addChild(stylerule);
-    }
     @Override
     public void exitStyleSheet(ICSSParser.StylesheetContext ctx) {
-        Stylesheet stylesheet = (stylesheet) currentContainer.pop();
+        Stylesheet stylesheet = (Stylesheet) currentContainer.pop();
         ast.setRoot(stylesheet);
     }
 
+    @Override
+    public void enterStylerule(ICSSParser.StyleruleContext ctx){
+        currentContainer.push(new Stylerule());
+    }
+
+
+    @Override
+    public void exitStylerule (ICSSParser.StyleruleContext ctx){
+        Stylerule stylerule = (Stylerule)currentContainer.pop();
+        currentContainer.peek().addChild(stylerule);
+    }
+
+    @Override
+    public void enterClassSelector (ICSSParser.Class_selectorContext ctx){
+        currentContainer.push(new ClassSelector());
+    }
+
+    @Override
+    public void exitClassSelector (ICSSParser.Class_selectorContext ctx){
+        ClassSelector classSelector = (ClassSelector)currentContainer.pop();
+    }
 
     
 }

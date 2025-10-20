@@ -48,10 +48,15 @@ ASSIGNMENT_OPERATOR: ':=';
 
 //--- PARSER: ---
 stylesheet: stylerule;
-stylerule: id_selector OPEN_BRACE declaration CLOSE_BRACE | type_selector OPEN_BRACE declaration CLOSE_BRACE;
-class_selector: CLASS_IDENT;
-type_selector: TYPE_IDENT;
-id_selector: ID_IDENT;
-declaration: property COLON pixel_literal SEMICOLON | property ;
+stylerule: selector OPEN_BRACE declartion CLOSE_BRACE;
+selector:
+    LOWER_IDENT #tagSelector |
+    CLASS_IDENT #classSelector |
+    ID_IDENT #idSelector;
+declaration: property COLON expression SEMICOLON;
 property: LOWER_IDENT;
-pixel_literal:PIXELSIZE;
+expression:
+    PIXELSIZE #pixelLiteral |
+    COLOR #colorLiteral;
+
+
