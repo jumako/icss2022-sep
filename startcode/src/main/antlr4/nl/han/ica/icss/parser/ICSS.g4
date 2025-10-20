@@ -48,7 +48,7 @@ ASSIGNMENT_OPERATOR: ':=';
 
 //--- PARSER: ---
 stylesheet: stylerule;
-stylerule: selector OPEN_BRACE declartion CLOSE_BRACE;
+stylerule: selector OPEN_BRACE declaration CLOSE_BRACE;
 selector:
     LOWER_IDENT #tagSelector |
     CLASS_IDENT #classSelector |
