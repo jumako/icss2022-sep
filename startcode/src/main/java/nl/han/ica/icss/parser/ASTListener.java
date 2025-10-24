@@ -20,15 +20,14 @@ import nl.han.ica.icss.ast.selectors.TagSelector;
  */
 public class ASTListener extends ICSSBaseListener {
 
-    //Accumulator attributes:
     private AST ast;
-
-    //Use this to keep track of the parent nodes when recursively traversing the ast
     private HANStack<ASTNode> currentContainer;
+    private Expression currentExpr;
 
     public ASTListener() {
         ast = new AST();
         currentContainer = new HANStack<>();
+
     }
 
     public AST getAST() {
@@ -92,13 +91,37 @@ public class ASTListener extends ICSSBaseListener {
     @Override
     public void enterDeclaration(ICSSParser.DeclarationContext ctx) {
         currentContainer.push(new Declaration());
+        currentExpr = null;
     }
 
     @Override
     public void exitDeclaration(ICSSParser.DeclarationContext ctx) {
         Declaration decl = (Declaration) currentContainer.pop();
+        decl.expression = currentExpr;
         currentContainer.peek().addChild(decl);
     }
+
+    @Override
+    public void exitProperty(ICSSParser.PropertyContext ctx){
+        Declaration decl = (Declaration) currentContainer.peek();
+        decl.property = new PropertyName(ctx.getText());
+    }
+
+    @Override
+    public void exitPixelLiteral(ICSSParser.PixelLiteralContext ctx) {
+        String t = ctx.getText();
+        int n = Integer.parseInt(t.substring(0, t.length()-2));
+        currentExpr = new PixelLiteral(n);
+    }
+
+    @Override
+    public void exitColorLiteral(ICSSParser.ColorLiteralContext ctx) {
+        currentExpr = new ColorLiteral(ctx.getText());
+    }
+
+
+
+
 
 }
 

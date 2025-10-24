@@ -3,6 +3,7 @@ package nl.han.ica.icss.checker;
 import nl.han.ica.datastructures.IHANLinkedList;
 import nl.han.ica.icss.ast.*;
 import nl.han.ica.icss.ast.literals.ColorLiteral;
+import nl.han.ica.icss.ast.literals.PixelLiteral;
 import nl.han.ica.icss.ast.types.ExpressionType;
 
 import java.util.HashMap;
@@ -36,6 +37,11 @@ public class Checker {
         if(declaration.property.name.equals("width")){
             if(declaration.expression instanceof ColorLiteral){
                 declaration.setError("Property 'width': color not allowed ");
+            }
+        }
+        if (declaration.property.name.equals("background-color")){
+            if(declaration.expression instanceof PixelLiteral){
+                declaration.setError("Property 'background-color': pixel not allowed ");
             }
         }
     }
