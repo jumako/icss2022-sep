@@ -14,6 +14,7 @@ import nl.han.ica.icss.ast.operations.SubtractOperation;
 import nl.han.ica.icss.ast.selectors.ClassSelector;
 import nl.han.ica.icss.ast.selectors.IdSelector;
 import nl.han.ica.icss.ast.selectors.TagSelector;
+import org.checkerframework.checker.signature.qual.Identifier;
 
 /**
  * This class extracts the ICSS Abstract Syntax Tree from the Antlr Parse tree.
@@ -47,6 +48,20 @@ public class ASTListener extends ICSSBaseListener {
     }
 
     @Override
+    public void enterVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
+        currentContainer.push(new VariableAssignment());
+        currentExpr = null;
+
+    }
+
+    @Override
+    public void exitVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
+        VariableAssignment variableAssignment = (VariableAssignment) currentContainer.pop();
+        variableAssignment.expression = currentExpr;
+        currentContainer.peek().addChild(variableAssignment);
+    }
+
+    @Override
     public void enterStylerule(ICSSParser.StyleruleContext ctx) {
         currentContainer.push(new Stylerule());
     }
@@ -72,6 +87,7 @@ public class ASTListener extends ICSSBaseListener {
     public void enterClassSelector(ICSSParser.ClassSelectorContext ctx) {
         currentContainer.push(new ClassSelector(ctx.getText().substring(1)));
     }
+
     @Override
     public void exitClassSelector(ICSSParser.ClassSelectorContext ctx) {
         ClassSelector sel = (ClassSelector) currentContainer.pop();
@@ -82,6 +98,7 @@ public class ASTListener extends ICSSBaseListener {
     public void enterIdSelector(ICSSParser.IdSelectorContext ctx) {
         currentContainer.push(new IdSelector(ctx.getText().substring(1)));
     }
+
     @Override
     public void exitIdSelector(ICSSParser.IdSelectorContext ctx) {
         IdSelector sel = (IdSelector) currentContainer.pop();
@@ -102,7 +119,7 @@ public class ASTListener extends ICSSBaseListener {
     }
 
     @Override
-    public void exitProperty(ICSSParser.PropertyContext ctx){
+    public void exitProperty(ICSSParser.PropertyContext ctx) {
         Declaration decl = (Declaration) currentContainer.peek();
         decl.property = new PropertyName(ctx.getText());
     }
@@ -110,7 +127,7 @@ public class ASTListener extends ICSSBaseListener {
     @Override
     public void exitPixelLiteral(ICSSParser.PixelLiteralContext ctx) {
         String t = ctx.getText();
-        int n = Integer.parseInt(t.substring(0, t.length()-2));
+        int n = Integer.parseInt(t.substring(0, t.length() - 2));
         currentExpr = new PixelLiteral(n);
     }
 
@@ -119,9 +136,29 @@ public class ASTListener extends ICSSBaseListener {
         currentExpr = new ColorLiteral(ctx.getText());
     }
 
+    @Override
+    public void exitVariableName(ICSSParser.VariableNameContext ctx) {
+        ASTNode top = currentContainer.peek();
+        if (top instanceof VariableAssignment) {
+            ((VariableAssignment) top).name = new VariableReference(ctx.getText());
+        }
+    }
 
 
+    @Override
+    public void exitTrueLiteral(ICSSParser.TrueLiteralContext ctx) {
+        currentExpr = new BoolLiteral(true);
+    }
 
+    @Override
+    public void exitFalseLiteral(ICSSParser.FalseLiteralContext ctx) {
+        currentExpr = new BoolLiteral(false);
+    }
+
+    @Override
+    public void exitVarRef(ICSSParser.VarRefContext ctx) {
+        currentExpr = new VariableReference(ctx.getText());
+    }
 
 }
 

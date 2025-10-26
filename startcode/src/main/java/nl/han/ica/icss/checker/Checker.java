@@ -16,7 +16,7 @@ public class Checker {
 
     public void check(AST ast) {
         checkStylesheet(ast.root);
-//        variableTypes = new LinkedList<>();
+          variableTypes = new LinkedList<>();
 
     }
 
