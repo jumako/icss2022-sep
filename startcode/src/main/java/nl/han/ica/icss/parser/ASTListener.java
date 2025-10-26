@@ -22,12 +22,13 @@ import org.checkerframework.checker.signature.qual.Identifier;
 public class ASTListener extends ICSSBaseListener {
 
     private AST ast;
-    private HANStack<ASTNode> currentContainer;
+    private HANStack<ASTNode> currentContainer =  new HANStack<>();
+    private HANStack<Expression> exprStack = new HANStack<>();
     private Expression currentExpr;
 
     public ASTListener() {
         ast = new AST();
-        currentContainer = new HANStack<>();
+
 
     }
 
@@ -50,15 +51,23 @@ public class ASTListener extends ICSSBaseListener {
     @Override
     public void enterVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
         currentContainer.push(new VariableAssignment());
-        currentExpr = null;
+        exprStack = new HANStack<>();
 
     }
 
     @Override
     public void exitVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
         VariableAssignment variableAssignment = (VariableAssignment) currentContainer.pop();
-        variableAssignment.expression = currentExpr;
+        variableAssignment.expression = exprStack.pop();
         currentContainer.peek().addChild(variableAssignment);
+    }
+
+    @Override
+    public void exitVariableName(ICSSParser.VariableNameContext ctx) {
+        ASTNode top = currentContainer.peek();
+        if (top instanceof VariableAssignment) {
+            ((VariableAssignment) top).name = new VariableReference(ctx.getText());
+        }
     }
 
     @Override
@@ -108,13 +117,13 @@ public class ASTListener extends ICSSBaseListener {
     @Override
     public void enterDeclaration(ICSSParser.DeclarationContext ctx) {
         currentContainer.push(new Declaration());
-        currentExpr = null;
+        exprStack = new HANStack<>();
     }
 
     @Override
     public void exitDeclaration(ICSSParser.DeclarationContext ctx) {
         Declaration decl = (Declaration) currentContainer.pop();
-        decl.expression = currentExpr;
+        decl.expression = exprStack.pop();
         currentContainer.peek().addChild(decl);
     }
 
@@ -128,37 +137,64 @@ public class ASTListener extends ICSSBaseListener {
     public void exitPixelLiteral(ICSSParser.PixelLiteralContext ctx) {
         String t = ctx.getText();
         int n = Integer.parseInt(t.substring(0, t.length() - 2));
-        currentExpr = new PixelLiteral(n);
+        exprStack.push(new PixelLiteral(n));
+    }
+    @Override
+    public void exitScalarLiteral (ICSSParser.ScalarLiteralContext ctx){
+        exprStack.push(new ScalarLiteral(Integer.parseInt(ctx.getText())));
     }
 
     @Override
     public void exitColorLiteral(ICSSParser.ColorLiteralContext ctx) {
-        currentExpr = new ColorLiteral(ctx.getText());
+        exprStack.push(new ColorLiteral(ctx.getText()));
     }
-
-    @Override
-    public void exitVariableName(ICSSParser.VariableNameContext ctx) {
-        ASTNode top = currentContainer.peek();
-        if (top instanceof VariableAssignment) {
-            ((VariableAssignment) top).name = new VariableReference(ctx.getText());
-        }
-    }
-
 
     @Override
     public void exitTrueLiteral(ICSSParser.TrueLiteralContext ctx) {
-        currentExpr = new BoolLiteral(true);
+        exprStack.push(new BoolLiteral(true));
     }
 
     @Override
     public void exitFalseLiteral(ICSSParser.FalseLiteralContext ctx) {
-        currentExpr = new BoolLiteral(false);
+        exprStack.push(new BoolLiteral(false));
     }
 
     @Override
     public void exitVarRef(ICSSParser.VarRefContext ctx) {
-        currentExpr = new VariableReference(ctx.getText());
+        exprStack.push(new VariableReference(ctx.getText()));
     }
+
+    @Override
+    public void exitAddOperation(ICSSParser.AddOperationContext ctx) {
+        Expression rhs = exprStack.pop();
+        Expression lhs = exprStack.pop();
+        AddOperation op = new AddOperation();
+        op.lhs =  lhs;
+        op.rhs = rhs;
+        exprStack.push(op);
+    }
+    @Override
+    public void exitSubOperation(ICSSParser.SubOperationContext ctx) {
+        Expression rhs = exprStack.pop();
+        Expression lhs = exprStack.pop();
+        SubtractOperation op = new SubtractOperation();
+        op.lhs =  lhs;
+        op.rhs = rhs;
+        exprStack.push(op);
+    }
+
+    @Override
+    public void exitMulOperation(ICSSParser.MulOperationContext ctx) {
+        Expression rhs = exprStack.pop();
+        Expression lhs = exprStack.pop();
+        MultiplyOperation op = new MultiplyOperation();
+        op.lhs =  lhs;
+        op.rhs = rhs;
+        exprStack.push(op);
+    }
+
+
+
 
 }
 

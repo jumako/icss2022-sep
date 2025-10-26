@@ -41,10 +41,6 @@ MIN: '-';
 MUL: '*';
 ASSIGNMENT_OPERATOR: ':=';
 
-
-
-
-
 //--- PARSER: ---
 stylesheet: (variableAssignment | stylerule)* EOF;
 
@@ -59,7 +55,15 @@ selector:
 declaration: property COLON expression SEMICOLON;
 property: LOWER_IDENT;
 expression:
+    expression PLUS term #addOperation|
+    expression MIN term #subOperation|
+    term # toTerm;
+term:
+    term MUL factor #mulOperation|
+    factor #toFactor;
+factor:
     PIXELSIZE #pixelLiteral |
+    SCALAR #scalarLiteral|
     COLOR #colorLiteral|
     TRUE #trueLiteral|
     FALSE #falseLiteral|
