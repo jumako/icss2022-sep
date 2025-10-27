@@ -22,9 +22,10 @@ import org.checkerframework.checker.signature.qual.Identifier;
 public class ASTListener extends ICSSBaseListener {
 
     private AST ast;
-    private HANStack<ASTNode> currentContainer =  new HANStack<>();
+    private HANStack<ASTNode> currentContainer = new HANStack<>();
     private HANStack<Expression> exprStack = new HANStack<>();
-    private Expression currentExpr;
+    private HANStack<IfClause> ifstack = new HANStack<>();
+    private Expression currentCon;
 
     public ASTListener() {
         ast = new AST();
@@ -44,8 +45,8 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void exitStylesheet(ICSSParser.StylesheetContext ctx) {
-        Stylesheet stylesheet = (Stylesheet) currentContainer.pop();
-        ast.setRoot(stylesheet);
+        Stylesheet ssheet = (Stylesheet) currentContainer.pop();
+        ast.setRoot(ssheet);
     }
 
     @Override
@@ -57,9 +58,9 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void exitVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
-        VariableAssignment variableAssignment = (VariableAssignment) currentContainer.pop();
-        variableAssignment.expression = exprStack.pop();
-        currentContainer.peek().addChild(variableAssignment);
+        VariableAssignment vAssign = (VariableAssignment) currentContainer.pop();
+        vAssign.expression = exprStack.pop();
+        currentContainer.peek().addChild(vAssign);
     }
 
     @Override
@@ -77,8 +78,8 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void exitStylerule(ICSSParser.StyleruleContext ctx) {
-        Stylerule stylerule = (Stylerule) currentContainer.pop();
-        currentContainer.peek().addChild(stylerule);
+        Stylerule srule = (Stylerule) currentContainer.pop();
+        currentContainer.peek().addChild(srule);
     }
 
     @Override
@@ -139,8 +140,9 @@ public class ASTListener extends ICSSBaseListener {
         int n = Integer.parseInt(t.substring(0, t.length() - 2));
         exprStack.push(new PixelLiteral(n));
     }
+
     @Override
-    public void exitScalarLiteral (ICSSParser.ScalarLiteralContext ctx){
+    public void exitScalarLiteral(ICSSParser.ScalarLiteralContext ctx) {
         exprStack.push(new ScalarLiteral(Integer.parseInt(ctx.getText())));
     }
 
@@ -169,16 +171,17 @@ public class ASTListener extends ICSSBaseListener {
         Expression rhs = exprStack.pop();
         Expression lhs = exprStack.pop();
         AddOperation op = new AddOperation();
-        op.lhs =  lhs;
+        op.lhs = lhs;
         op.rhs = rhs;
         exprStack.push(op);
     }
+
     @Override
     public void exitSubOperation(ICSSParser.SubOperationContext ctx) {
         Expression rhs = exprStack.pop();
         Expression lhs = exprStack.pop();
         SubtractOperation op = new SubtractOperation();
-        op.lhs =  lhs;
+        op.lhs = lhs;
         op.rhs = rhs;
         exprStack.push(op);
     }
@@ -188,13 +191,63 @@ public class ASTListener extends ICSSBaseListener {
         Expression rhs = exprStack.pop();
         Expression lhs = exprStack.pop();
         MultiplyOperation op = new MultiplyOperation();
-        op.lhs =  lhs;
+        op.lhs = lhs;
         op.rhs = rhs;
         exprStack.push(op);
     }
 
+    @Override
+    public void enterIfClause(ICSSParser.IfClauseContext ctx) {
+        IfClause ifClause = new IfClause();
+        currentContainer.push(ifClause);
+        ifstack.push(ifClause);
 
+    }
 
+    @Override
+    public void exitIfClause(ICSSParser.IfClauseContext ctx) {
+        IfClause ifClause = (IfClause) currentContainer.pop();
+        ifClause.conditionalExpression = currentCon;
+        ifstack.pop();
+        currentContainer.peek().addChild(ifClause);
+    }
+
+    @Override
+    public void enterElseClause(ICSSParser.ElseClauseContext ctx) {
+        currentContainer.push(new ElseClause());
+    }
+
+    @Override
+    public void exitElseClause(ICSSParser.ElseClauseContext ctx) {
+        ElseClause elseClause = (ElseClause) currentContainer.pop();
+        IfClause parentIfClause = ifstack.peek();
+        parentIfClause.addChild(elseClause);
+    }
+
+    @Override
+    public void enterCondition (ICSSParser.ConditionContext ctx){
+       exprStack =  new HANStack<>();
+    }
+
+    @Override
+    public void exitCondition (ICSSParser.ConditionContext ctx) {
+        if (exprStack.isEmpty()) {
+            throw new RuntimeException("Condition expression empty" + ctx.getStart().getLine());
+
+        }
+        currentCon = exprStack.pop();
+    }
+    @Override
+    public void exitPercentageLiteral(ICSSParser.PercentageLiteralContext ctx) {
+        String t = ctx.getText();
+        int n = Integer.parseInt(t.substring(0, t.length() - 1));
+        exprStack.push(new PercentageLiteral(n));
+    }
 
 }
+
+
+
+
+
 

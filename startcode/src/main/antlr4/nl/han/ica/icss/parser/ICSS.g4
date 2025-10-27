@@ -47,7 +47,9 @@ stylesheet: (variableAssignment | stylerule)* EOF;
 variableAssignment : variableName ASSIGNMENT_OPERATOR expression SEMICOLON;
 variableName: CAPITAL_IDENT;
 stylerule: selector OPEN_BRACE declaration* CLOSE_BRACE;
-ifClause: IF BOX_BRACKET_OPEN expression BOX_BRACKET_CLOSE OPEN_BRACE (declaration | ifClause)* CLOSE_BRACE (ELSE OPEN_BRACE (declaration | ifClause)* CLOSE_BRACE)?;
+condition: expression;
+elseClause: ELSE OPEN_BRACE (declaration | ifClause)* CLOSE_BRACE;
+ifClause: IF BOX_BRACKET_OPEN condition BOX_BRACKET_CLOSE OPEN_BRACE (declaration | ifClause)* CLOSE_BRACE (elseClause)?;
 selector:
     LOWER_IDENT #tagSelector |
     CLASS_IDENT #classSelector |
@@ -58,12 +60,13 @@ property: LOWER_IDENT;
 expression:
     expression PLUS term #addOperation|
     expression MIN term #subOperation|
-    term # toTerm;
+    term #toTerm;
 term:
     term MUL factor #mulOperation|
     factor #toFactor;
 factor:
     PIXELSIZE #pixelLiteral |
+    PERCENTAGE #percentageLiteral|
     SCALAR #scalarLiteral|
     COLOR #colorLiteral|
     TRUE #trueLiteral|

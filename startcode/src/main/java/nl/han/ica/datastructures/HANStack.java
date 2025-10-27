@@ -35,4 +35,14 @@ public class HANStack<T> {
         }
         return data.get(data.size() - 1);
     }
+
+    public boolean isEmpty(){
+        return data.isEmpty();
+    }
+    public int size(){
+        return data.size();
+    }
+    public void clear(){
+        data.clear();
+    }
 }
