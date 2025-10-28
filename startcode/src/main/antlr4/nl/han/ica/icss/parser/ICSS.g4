@@ -3,8 +3,8 @@ grammar ICSS;
 //--- LEXER: ---
 
 // IF support:
-IF: 'if';
-ELSE: 'else';
+IF: [iI] [fF];
+ELSE: [eE] [lL] [sS] [eE];
 BOX_BRACKET_OPEN: '[';
 BOX_BRACKET_CLOSE: ']';
 
@@ -43,10 +43,10 @@ ASSIGNMENT_OPERATOR: ':=';
 
 //--- PARSER: ---
 stylesheet: (variableAssignment | stylerule)* EOF;
-
 variableAssignment : variableName ASSIGNMENT_OPERATOR expression SEMICOLON;
 variableName: CAPITAL_IDENT;
-stylerule: selector OPEN_BRACE declaration* CLOSE_BRACE;
+declaration: property COLON expression SEMICOLON;
+stylerule: selector OPEN_BRACE (declaration| ifClause)* CLOSE_BRACE;
 condition: expression;
 elseClause: ELSE OPEN_BRACE (declaration | ifClause)* CLOSE_BRACE;
 ifClause: IF BOX_BRACKET_OPEN condition BOX_BRACKET_CLOSE OPEN_BRACE (declaration | ifClause)* CLOSE_BRACE (elseClause)?;
@@ -55,7 +55,7 @@ selector:
     CLASS_IDENT #classSelector |
     ID_IDENT #idSelector;
 
-declaration: property COLON expression SEMICOLON;
+
 property: LOWER_IDENT;
 expression:
     expression PLUS term #addOperation|

@@ -24,7 +24,7 @@ public class ASTListener extends ICSSBaseListener {
     private AST ast;
     private HANStack<ASTNode> currentContainer = new HANStack<>();
     private HANStack<Expression> exprStack = new HANStack<>();
-    private HANStack<IfClause> ifstack = new HANStack<>();
+    private HANStack<IfClause> ifStack = new HANStack<>();
     private Expression currentCon;
 
     public ASTListener() {
@@ -40,27 +40,30 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void enterStylesheet(ICSSParser.StylesheetContext ctx) {
+        System.out.println("test");
         currentContainer.push(new Stylesheet());
     }
 
     @Override
     public void exitStylesheet(ICSSParser.StylesheetContext ctx) {
-        Stylesheet ssheet = (Stylesheet) currentContainer.pop();
-        ast.setRoot(ssheet);
+        Stylesheet sheet = (Stylesheet) currentContainer.pop();
+        ast.setRoot(sheet);
     }
 
     @Override
     public void enterVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
         currentContainer.push(new VariableAssignment());
-        exprStack = new HANStack<>();
 
     }
 
     @Override
     public void exitVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
-        VariableAssignment vAssign = (VariableAssignment) currentContainer.pop();
-        vAssign.expression = exprStack.pop();
-        currentContainer.peek().addChild(vAssign);
+        VariableAssignment variableAssignment = (VariableAssignment) currentContainer.pop();
+        if(exprStack.isEmpty()){
+            throw new RuntimeException("RHS expression ontbreekt voor variableAssignment op regel "+ ctx.getStart().getLine());
+        }
+        variableAssignment.expression = exprStack.pop();
+        currentContainer.peek().addChild(variableAssignment);
     }
 
     @Override
@@ -118,12 +121,15 @@ public class ASTListener extends ICSSBaseListener {
     @Override
     public void enterDeclaration(ICSSParser.DeclarationContext ctx) {
         currentContainer.push(new Declaration());
-        exprStack = new HANStack<>();
+
     }
 
     @Override
     public void exitDeclaration(ICSSParser.DeclarationContext ctx) {
         Declaration decl = (Declaration) currentContainer.pop();
+        if(exprStack.isEmpty()){
+            throw new RuntimeException("Expression ontbreekt in declaration op regel " + ctx.getStart().getLine());
+        }
         decl.expression = exprStack.pop();
         currentContainer.peek().addChild(decl);
     }
@@ -200,7 +206,8 @@ public class ASTListener extends ICSSBaseListener {
     public void enterIfClause(ICSSParser.IfClauseContext ctx) {
         IfClause ifClause = new IfClause();
         currentContainer.push(ifClause);
-        ifstack.push(ifClause);
+        ifStack.push(ifClause);
+
 
     }
 
@@ -208,7 +215,7 @@ public class ASTListener extends ICSSBaseListener {
     public void exitIfClause(ICSSParser.IfClauseContext ctx) {
         IfClause ifClause = (IfClause) currentContainer.pop();
         ifClause.conditionalExpression = currentCon;
-        ifstack.pop();
+        ifStack.pop();
         currentContainer.peek().addChild(ifClause);
     }
 
@@ -220,13 +227,13 @@ public class ASTListener extends ICSSBaseListener {
     @Override
     public void exitElseClause(ICSSParser.ElseClauseContext ctx) {
         ElseClause elseClause = (ElseClause) currentContainer.pop();
-        IfClause parentIfClause = ifstack.peek();
+        IfClause parentIfClause = ifStack.peek();
         parentIfClause.addChild(elseClause);
     }
 
     @Override
     public void enterCondition (ICSSParser.ConditionContext ctx){
-       exprStack =  new HANStack<>();
+
     }
 
     @Override
