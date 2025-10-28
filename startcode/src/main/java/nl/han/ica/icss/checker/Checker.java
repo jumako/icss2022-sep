@@ -4,6 +4,9 @@ import nl.han.ica.datastructures.IHANLinkedList;
 import nl.han.ica.icss.ast.*;
 import nl.han.ica.icss.ast.literals.ColorLiteral;
 import nl.han.ica.icss.ast.literals.PixelLiteral;
+import nl.han.ica.icss.ast.operations.AddOperation;
+import nl.han.ica.icss.ast.operations.MultiplyOperation;
+import nl.han.ica.icss.ast.operations.SubtractOperation;
 import nl.han.ica.icss.ast.types.ExpressionType;
 import nl.han.ica.icss.ast.literals.BoolLiteral;
 import nl.han.ica.icss.ast.literals.PercentageLiteral;
@@ -17,11 +20,12 @@ import java.util.Map;
 
 public class Checker {
 
-    private final LinkedList<HashMap<String, ExpressionType>> variableTypes =  new LinkedList<>();
+
+    private final LinkedList<HashMap<String, ExpressionType>> variableTypes = new LinkedList<>();
 
     public void check(AST ast) {
         variableTypes.clear();
-        variableTypes.push(new HashMap<>());
+        variableTypes.push(new HashMap<String, ExpressionType>());
         checkStylesheet(ast.root);
     }
 
@@ -80,33 +84,74 @@ public class Checker {
             declaration.setError("Onbekende variabele: " + ((VariableReference) declaration.expression).name);
             return;
         }
-        if("width".equals(declaration.property.name)){
-            if(expressionType == ExpressionType.COLOR || declaration.expression instanceof ColorLiteral){
+        if("width".equalsIgnoreCase(declaration.property.name)){
+            if(!(expressionType == ExpressionType.PIXEL || expressionType == ExpressionType.PERCENTAGE)){
 
-                declaration.setError("Property 'width': color not allowed ");
+                declaration.setError("Property 'width' verwacht pixel of percentage, maar kreeg: " + (expressionType == null ? "onbekend" : expressionType.toString()));
             }
-
         }
-        if ("background-color".equals(declaration.property.name)) {
-            if(expressionType == ExpressionType.PIXEL || declaration.expression instanceof PixelLiteral){
-                declaration.setError("Property 'background-color': pixel not allowed ");
+        if ("background-color".equalsIgnoreCase(declaration.property.name)) {
+            if(expressionType != ExpressionType.COLOR ){
+                declaration.setError("Property 'background-color' verwacht color, maar kreeg: " + (expressionType == null ? "onbekend" : expressionType.toString()));
             }
         }
     }
 
     public void ensureScope() {
-        if (variableTypes.isEmpty()) variableTypes.push(new HashMap<>());
+        if (variableTypes.isEmpty()) variableTypes.push(new HashMap<String, ExpressionType>());
     }
 
     private ExpressionType inferType(Expression expression) {
         if (expression instanceof ColorLiteral) return ExpressionType.COLOR;
         if (expression instanceof PixelLiteral) return ExpressionType.PIXEL;
+        if (expression instanceof PercentageLiteral) return ExpressionType.PERCENTAGE;
+        if (expression instanceof ScalarLiteral) return ExpressionType.SCALAR;
         if (expression instanceof BoolLiteral) return ExpressionType.BOOL;
         if (expression instanceof VariableReference) {
             String name = ((VariableReference) expression).name;
-            ExpressionType resolved = resolve(name);
-            return resolved;
+            return resolve(name);
         }
+
+        if (expression instanceof Operation){
+            Operation op = (Operation) expression;
+            ExpressionType lt = inferType(op.lhs);
+            ExpressionType rt = inferType(op.rhs);
+
+
+            if(lt == null || rt == null){
+                op.setError("Ongeldige operand(en) voor "+ op.getClass().getSimpleName());
+                return null;
+            }
+
+            if (op instanceof MultiplyOperation) {
+                if (lt == ExpressionType.SCALAR && (rt == ExpressionType.PIXEL || rt == ExpressionType.PERCENTAGE)){
+                    return rt;
+                }
+                if ((lt == ExpressionType.PIXEL || rt == ExpressionType.PERCENTAGE) && rt == ExpressionType.SCALAR){
+                    return lt;
+                }
+                if (lt == ExpressionType.SCALAR && rt == ExpressionType.SCALAR){
+                    return ExpressionType.SCALAR;
+                }
+                if (lt == ExpressionType.COLOR || rt == ExpressionType.COLOR){
+                    op.setError("Vermenigvuldiging met color is niet toegestaan.");
+                    return null;
+                }
+                op.setError("Ongeldige vermenigvuldiging: " + lt + " * " + rt);
+                return null;
+            }
+
+            if (op instanceof AddOperation || op instanceof SubtractOperation){
+                if(lt == rt && (lt == ExpressionType.PIXEL || lt == ExpressionType.PERCENTAGE || lt == ExpressionType.SCALAR)){
+                    return lt;
+                }
+                op.setError("Ongeldige optelling/aftrekking: " + lt + " en " + rt + " zijn niet compatibel.");
+                return null;
+            }
+            op.setError("Onbekende operatie: " + op.getClass().getSimpleName());
+            return null;
+        }
+
         return null;
     }
     private ExpressionType resolve(String name) {
