@@ -63,7 +63,7 @@ public class Evaluator implements Transform {
                 Literal condLit = eval(ifClause.conditionalExpression);
                 boolean cond = toBool(condLit);
 
-                List<ASTNode> chosen;
+                List<ASTNode> chosen ;
                 if (cond) {
                     chosen = ifClause.body;
                 } else {
