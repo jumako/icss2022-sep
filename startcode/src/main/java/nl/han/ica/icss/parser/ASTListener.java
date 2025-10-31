@@ -73,9 +73,9 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void exitVariableName(ICSSParser.VariableNameContext ctx) {
-        ASTNode top = currentContainer.peek();
-        if (top instanceof VariableAssignment) {
-            ((VariableAssignment) top).name = new VariableReference(ctx.getText());
+        ASTNode astNode = currentContainer.peek();
+        if (astNode instanceof VariableAssignment) {
+            ((VariableAssignment) astNode).name = new VariableReference(ctx.getText());
         }
     }
 //Stylerule
