@@ -13,6 +13,12 @@ import nl.han.ica.icss.ast.literals.*;
 import nl.han.ica.icss.ast.operations.*;
 
 import java.util.*;
+/**
+ * Evaluator — rekent de ICSS-boom uit.
+ * Verwijdert variabele-assignments en if/else-structuren door alles
+ * te evalueren tot concrete waardes (literals).
+ * Resultaat: stylerules met declaraties waarin de expressies al uitgerekend zijn.
+ */
 
 public class Evaluator implements Transform {
 
@@ -21,6 +27,13 @@ public class Evaluator implements Transform {
     public Evaluator() {
         this.variableValues = new LinkedList<HashMap<String, Literal>>();
     }
+    /**
+     * apply(AST) — startpunt van de evaluatie.
+     * 1) Maakt een globalscope.
+     * 2) Transformeert alle kinderen van de stylesheet (variabelen uitrekenen, if's ontvouwen).
+     * 3) Vervangt de originele kinderen door de vereenvoudigde lijst.
+     * 4) Ruimt de scope-stack op.
+     */
 
     @Override
     public void apply(AST ast) {
@@ -187,6 +200,12 @@ public class Evaluator implements Transform {
         condLit.setError("If-conditie moet BOOL zijn.");
         return false;
 }
+    /**
+     * copyTopScope() — maakt een defensieve kopie van de huidige (bovenste) scope.
+     * Zo kunnen we binnen stylerules en if/else-branches veilig variabelen wijzigen
+     * zonder dat die wijzigingen ‘lekken’ naar hogere scopes.
+     */
+
     private HashMap<String, Literal> copyTopScope() {
         return variableValues.isEmpty() ? new HashMap<>() : new HashMap<>(variableValues.peek());
     }

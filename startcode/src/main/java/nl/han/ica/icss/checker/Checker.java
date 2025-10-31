@@ -19,15 +19,15 @@ import java.util.Map;
 
 
 public class Checker {
-
-
     private final LinkedList<HashMap<String, ExpressionType>> variableTypes = new LinkedList<>();
-
+    private static final java.util.Set<String> ALLOWED_PROPS =
+            java.util.Set.of("color","background-color","width","height");
     public void check(AST ast) {
         variableTypes.clear();
         variableTypes.push(new HashMap<String, ExpressionType>());
         checkStylesheet(ast.root);
     }
+
 
     private void checkStylesheet(Stylesheet sheet) {
         for (ASTNode child : sheet.getChildren()) {
@@ -81,6 +81,12 @@ public class Checker {
 
     private void checkDeclaration(Declaration declaration) {
         ExpressionType expression = inferType(declaration.expression);
+        String prop = declaration.property.name.toLowerCase();
+        if (!ALLOWED_PROPS.contains(prop)) {
+            declaration.setError("Property '" + declaration.property.name + "' is niet toegestaan in ICSS.");
+            return;
+        }
+
 
         if (declaration.expression instanceof VariableReference && expression == null) {
             declaration.setError("Onbekende variabele: " + ((VariableReference) declaration.expression).name);
@@ -102,6 +108,12 @@ public class Checker {
                 declaration.setError("Property 'color' verwacht color, maar kreeg: " + (expression == null ? "onbekend" : expression));;
             }
         }
+        if ("height".equalsIgnoreCase(declaration.property.name)) {
+            if (!(expression == ExpressionType.PIXEL || expression == ExpressionType.PERCENTAGE)) {
+                declaration.setError("Property 'height' verwacht pixel of percentage, maar kreeg: " + (expression == null ? "onbekend" : expression));
+            }
+        }
+
     }
     private void checkIfClause(IfClause ifClause) {
         ExpressionType expression = inferType(ifClause.conditionalExpression);
@@ -148,7 +160,7 @@ public class Checker {
                 operation.setError("Ongeldige operand(en) voor " + operation.getClass().getSimpleName());
                 return null;
             }
-
+// Keer
             if (operation instanceof MultiplyOperation) {
                 if (left == ExpressionType.SCALAR && (right == ExpressionType.PIXEL || right == ExpressionType.PERCENTAGE)) {
                     return right;
@@ -166,7 +178,7 @@ public class Checker {
                 operation.setError("Ongeldige vermenigvuldiging: " + left + " * " + right);
                 return null;
             }
-
+// plus/Min
             if (operation instanceof AddOperation || operation instanceof SubtractOperation) {
                 if (left == ExpressionType.COLOR || right == ExpressionType.COLOR) {
                     operation.setError("Kleur mag niet gebruikt worden in + of -.");
@@ -184,7 +196,7 @@ public class Checker {
 
         return null;
     }
-
+// Zoekt het type variable op
     private ExpressionType resolve(String name) {
         for (HashMap<String, ExpressionType> scope : variableTypes) {
             if (scope.containsKey(name)) return scope.get(name);

@@ -8,6 +8,11 @@ import nl.han.ica.icss.ast.selectors.IdSelector;
 import nl.han.ica.icss.ast.selectors.TagSelector;
 
 public class Generator {
+/** et ISCC-AST om naar CSS
+ * - Zet ISCC-AST om naar CSS
+ * - Bouwt CSS door de boom te doorlopen en tekst in een StringBuilder te append’en.
+ * - Retourneert het eindresultaat als string.
+ */
 
     public String generate(AST ast) {
         if (ast == null || ast.root == null) {
@@ -17,7 +22,7 @@ public class Generator {
         walk(ast.root, builder, 0);
         return builder.toString();
     }
-
+// Loopt door de boom heen
     private void walk(ASTNode astnode, StringBuilder builder, int indent) {
         if (astnode instanceof Stylesheet) {
             Stylesheet stylesheet = (Stylesheet) astnode;
