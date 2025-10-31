@@ -1,6 +1,6 @@
 package nl.han.ica.icss.checker;
 
-import nl.han.ica.datastructures.IHANLinkedList;
+
 import nl.han.ica.icss.ast.*;
 import nl.han.ica.icss.ast.literals.ColorLiteral;
 import nl.han.ica.icss.ast.literals.PixelLiteral;
@@ -30,70 +30,96 @@ public class Checker {
     }
 
     private void checkStylesheet(Stylesheet sheet) {
-        for (ASTNode child : sheet.getChildren()){
+        for (ASTNode child : sheet.getChildren()) {
             checkNode(child);
         }
     }
 
     private void checkNode(ASTNode node) {
-        if(node instanceof Stylerule){
+        if (node instanceof Stylerule) {
             checkStylerule((Stylerule) node);
-        }
-        else if(node instanceof VariableAssignment){
+        } else if (node instanceof VariableAssignment) {
             checkVariableAssignment((VariableAssignment) node);
-        }
-        else if(node instanceof Declaration){
+        } else if (node instanceof Declaration) {
             checkDeclaration((Declaration) node);
+        } else if (node instanceof IfClause) {
+            checkIfClause((IfClause)node);
         }
-        else{
-            for (ASTNode child : node.getChildren()){
+        else {
+            for (ASTNode child : node.getChildren()) {
                 checkNode(child);
             }
         }
     }
 
+
+
     private void checkStylerule(Stylerule rule) {
         HashMap<String, ExpressionType> childScope = new HashMap<>();
         if (!variableTypes.isEmpty()) {
-            for (Map.Entry<String, ExpressionType> e : variableTypes.peek().entrySet()) {
-                childScope.put(e.getKey(), e.getValue());
+            for (Map.Entry<String, ExpressionType> expression : variableTypes.peek().entrySet()) {
+                childScope.put(expression.getKey(), expression.getValue());
             }
         }
         variableTypes.push(childScope);
-        for (ASTNode child : rule.getChildren()) {
-            checkNode(child);
+        for (ASTNode node : rule.getChildren()) {
+            checkNode(node);
         }
         variableTypes.pop();
     }
 
     private void checkVariableAssignment(VariableAssignment variableAssignment) {
-        ExpressionType ext = inferType(variableAssignment.expression);
-        if (ext == null) {
+        ExpressionType expression = inferType(variableAssignment.expression);
+        if (expression == null) {
             variableAssignment.setError("Kan type van expressie niet bepalen voor variabele '" + variableAssignment.name.name + "'.");
             return;
         }
         ensureScope();
-        variableTypes.peek().put(variableAssignment.name.name, ext);
+        variableTypes.peek().put(variableAssignment.name.name, expression);
     }
 
 
     private void checkDeclaration(Declaration declaration) {
-        ExpressionType expressionType = inferType(declaration.expression);
+        ExpressionType expression = inferType(declaration.expression);
 
-        if(declaration.expression instanceof VariableReference && expressionType == null){
+        if (declaration.expression instanceof VariableReference && expression == null) {
             declaration.setError("Onbekende variabele: " + ((VariableReference) declaration.expression).name);
             return;
         }
-        if("width".equalsIgnoreCase(declaration.property.name)){
-            if(!(expressionType == ExpressionType.PIXEL || expressionType == ExpressionType.PERCENTAGE)){
+        if ("width".equalsIgnoreCase(declaration.property.name)) {
+            if (!(expression == ExpressionType.PIXEL || expression == ExpressionType.PERCENTAGE)) {
 
-                declaration.setError("Property 'width' verwacht pixel of percentage, maar kreeg: " + (expressionType == null ? "onbekend" : expressionType.toString()));
+                declaration.setError("Property 'width' verwacht pixel of percentage, maar kreeg: " + (expression == null ? "onbekend" : expression.toString()));
             }
         }
         if ("background-color".equalsIgnoreCase(declaration.property.name)) {
-            if(expressionType != ExpressionType.COLOR ){
-                declaration.setError("Property 'background-color' verwacht color, maar kreeg: " + (expressionType == null ? "onbekend" : expressionType.toString()));
+            if (expression != ExpressionType.COLOR) {
+                declaration.setError("Property 'background-color' verwacht color, maar kreeg: " + (expression == null ? "onbekend" : expression.toString()));
             }
+        }
+        if ("color".equalsIgnoreCase(declaration.property.name)) {
+            if (expression != ExpressionType.COLOR) {
+                declaration.setError("Property 'color' verwacht color, maar kreeg: " + (expression == null ? "onbekend" : expression));;
+            }
+        }
+    }
+    private void checkIfClause(IfClause ifClause) {
+        ExpressionType expression = inferType(ifClause.conditionalExpression);
+        if(expression != ExpressionType.BOOL) {
+            ifClause.setError("If-conditie moet BOOL zijn, kreeg: " + (expression == null ? "onbekend" : expression.toString())+".");
+        }
+        variableTypes.push(copyTopScope());
+        for (ASTNode node : ifClause.body){
+            checkNode(node);
+        }
+            variableTypes.pop();
+
+        if(ifClause.elseClause != null && ifClause.elseClause.body != null){
+            variableTypes.push(copyTopScope());
+            for (ASTNode node : ifClause.elseClause.body){
+                checkNode(node);
+            }
+            variableTypes.pop();
         }
     }
 
@@ -112,53 +138,65 @@ public class Checker {
             return resolve(name);
         }
 
-        if (expression instanceof Operation){
-            Operation op = (Operation) expression;
-            ExpressionType lt = inferType(op.lhs);
-            ExpressionType rt = inferType(op.rhs);
+        if (expression instanceof Operation) {
+            Operation operation = (Operation) expression;
+            ExpressionType left = inferType(operation.lhs);
+            ExpressionType right = inferType(operation.rhs);
 
 
-            if(lt == null || rt == null){
-                op.setError("Ongeldige operand(en) voor "+ op.getClass().getSimpleName());
+            if (left == null || right == null) {
+                operation.setError("Ongeldige operand(en) voor " + operation.getClass().getSimpleName());
                 return null;
             }
 
-            if (op instanceof MultiplyOperation) {
-                if (lt == ExpressionType.SCALAR && (rt == ExpressionType.PIXEL || rt == ExpressionType.PERCENTAGE)){
-                    return rt;
+            if (operation instanceof MultiplyOperation) {
+                if (left == ExpressionType.SCALAR && (right == ExpressionType.PIXEL || right == ExpressionType.PERCENTAGE)) {
+                    return right;
                 }
-                if ((lt == ExpressionType.PIXEL || rt == ExpressionType.PERCENTAGE) && rt == ExpressionType.SCALAR){
-                    return lt;
+                if ((left == ExpressionType.PIXEL || left == ExpressionType.PERCENTAGE) && right == ExpressionType.SCALAR) {
+                    return left;
                 }
-                if (lt == ExpressionType.SCALAR && rt == ExpressionType.SCALAR){
+                if (left == ExpressionType.SCALAR && right == ExpressionType.SCALAR) {
                     return ExpressionType.SCALAR;
                 }
-                if (lt == ExpressionType.COLOR || rt == ExpressionType.COLOR){
-                    op.setError("Vermenigvuldiging met color is niet toegestaan.");
+                if (left == ExpressionType.COLOR || right == ExpressionType.COLOR) {
+                    operation.setError("Vermenigvuldiging met color is niet toegestaan.");
                     return null;
                 }
-                op.setError("Ongeldige vermenigvuldiging: " + lt + " * " + rt);
+                operation.setError("Ongeldige vermenigvuldiging: " + left + " * " + right);
                 return null;
             }
 
-            if (op instanceof AddOperation || op instanceof SubtractOperation){
-                if(lt == rt && (lt == ExpressionType.PIXEL || lt == ExpressionType.PERCENTAGE || lt == ExpressionType.SCALAR)){
-                    return lt;
+            if (operation instanceof AddOperation || operation instanceof SubtractOperation) {
+                if (left == ExpressionType.COLOR || right == ExpressionType.COLOR) {
+                    operation.setError("Kleur mag niet gebruikt worden in + of -.");
+                    return null;
                 }
-                op.setError("Ongeldige optelling/aftrekking: " + lt + " en " + rt + " zijn niet compatibel.");
+                if (left == right && (left == ExpressionType.PIXEL || left == ExpressionType.PERCENTAGE || left == ExpressionType.SCALAR)) {
+                    return left;
+                }
+                operation.setError("Ongeldige optelling/aftrekking: " + left + " en " + right + " zijn niet compatibel.");
                 return null;
             }
-            op.setError("Onbekende operatie: " + op.getClass().getSimpleName());
+            operation.setError("Onbekende operatie: " + operation.getClass().getSimpleName());
             return null;
         }
 
         return null;
     }
+
     private ExpressionType resolve(String name) {
         for (HashMap<String, ExpressionType> scope : variableTypes) {
             if (scope.containsKey(name)) return scope.get(name);
         }
         return null;
+    }
+
+    private HashMap<String, ExpressionType> copyTopScope() {
+        HashMap<String, ExpressionType> map = new HashMap<>();
+        if (!variableTypes.isEmpty()) map.putAll(variableTypes.peek()); {
+            return map;
+        }
     }
 
 

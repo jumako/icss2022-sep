@@ -3,15 +3,15 @@ grammar ICSS;
 //--- LEXER: ---
 
 // IF support:
-IF: [iI] [fF];
-ELSE: [eE] [lL] [sS] [eE];
+IF: [iI] [fF];// voor kleine en grootte letters
+ELSE: [eE] [lL] [sS] [eE];// voor kleine en grootte letters
 BOX_BRACKET_OPEN: '[';
 BOX_BRACKET_CLOSE: ']';
 
 
 //Literals
-TRUE: 'TRUE';
-FALSE: 'FALSE';
+TRUE: [tT][rR][uU][eE]; // voor kleine en grootte letters
+FALSE: [fF][aA][lL][sS][eE];// voor kleine en grootte letters
 PIXELSIZE: [0-9]+ 'px';
 PERCENTAGE: [0-9]+ '%';
 SCALAR: [0-9]+;

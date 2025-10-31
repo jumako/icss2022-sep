@@ -1,0 +1,11 @@
+p {
+    width: 10px;
+    color: #ff00aa;
+}
+#menu {
+    width: 120px;
+    height: 20px;
+}
+.nav {
+    color: #00ff00;
+}

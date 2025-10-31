@@ -1,37 +1,43 @@
 package nl.han.ica.icss.parser;
 
-import java.util.Stack;
-
-
 import nl.han.ica.datastructures.HANStack;
 import nl.han.ica.icss.ast.*;
 import nl.han.ica.icss.ast.literals.*;
 import nl.han.ica.icss.parser.ICSSParser;
-
 import nl.han.ica.icss.ast.operations.AddOperation;
 import nl.han.ica.icss.ast.operations.MultiplyOperation;
 import nl.han.ica.icss.ast.operations.SubtractOperation;
 import nl.han.ica.icss.ast.selectors.ClassSelector;
 import nl.han.ica.icss.ast.selectors.IdSelector;
 import nl.han.ica.icss.ast.selectors.TagSelector;
-import org.checkerframework.checker.signature.qual.Identifier;
+
 
 /**
- * This class extracts the ICSS Abstract Syntax Tree from the Antlr Parse tree.
+ * Bouwt een ICSS-AST vanuit de ANTLR parse tree.
+ * <p>
+ * Architectuur:
+ * - currentContainer (stack): houdt de huidige AST-"container" vast (Stylesheet, Stylerule, If/Else, etc.)
+ * - exprStack (stack): bouwt expressies bottom-up (literals, var refs, +, -, *)
+ * - ifStack (stack): koppelt de conditie en (else-)body aan de juiste IfClause, ook bij nesting
+ * <p>
+ * Belangrijk:
+ * - In exitCondition() koppelen we de conditie altijd aan ifStack.peek() (geen globale state).
+ * - In exitDeclaration()/exitVariableAssignment() verwachten we dat exprStack een RHS bevat zo niet → duidelijke foutmelding.
  */
-public class ASTListener extends ICSSBaseListener {
 
+public class ASTListener extends ICSSBaseListener {
     private AST ast;
+    // Houdt de huidige AST-container vast tijdens de parse (Stylesheet / Stylerule / IfClause / ElseClause)
     private HANStack<ASTNode> currentContainer = new HANStack<>();
+    // Bouwt expressies (literals, var refs, +, -, *) in RPN-stijl op via exit* van de grammar
     private HANStack<Expression> exprStack = new HANStack<>();
+    // Koppelt condities en else-bodies altijd aan de juiste IfClause (ook bij geneste if's)
     private HANStack<IfClause> ifStack = new HANStack<>();
-    private Expression currentCon;
 
     public ASTListener() {
         ast = new AST();
-
-
     }
+
 
     public AST getAST() {
         return ast;
@@ -40,7 +46,6 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void enterStylesheet(ICSSParser.StylesheetContext ctx) {
-        System.out.println("test");
         currentContainer.push(new Stylesheet());
     }
 
@@ -59,8 +64,8 @@ public class ASTListener extends ICSSBaseListener {
     @Override
     public void exitVariableAssignment(ICSSParser.VariableAssignmentContext ctx) {
         VariableAssignment variableAssignment = (VariableAssignment) currentContainer.pop();
-        if(exprStack.isEmpty()){
-            throw new RuntimeException("RHS expression ontbreekt voor variableAssignment op regel "+ ctx.getStart().getLine());
+        if (exprStack.isEmpty()) {
+            throw new RuntimeException("RHS expression ontbreekt voor variableAssignment op regel " + ctx.getStart().getLine());
         }
         variableAssignment.expression = exprStack.pop();
         currentContainer.peek().addChild(variableAssignment);
@@ -81,8 +86,8 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void exitStylerule(ICSSParser.StyleruleContext ctx) {
-        Stylerule srule = (Stylerule) currentContainer.pop();
-        currentContainer.peek().addChild(srule);
+        Stylerule stylerule = (Stylerule) currentContainer.pop();
+        currentContainer.peek().addChild(stylerule);
     }
 
     @Override
@@ -92,8 +97,8 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void exitTagSelector(ICSSParser.TagSelectorContext ctx) {
-        TagSelector sel = (TagSelector) currentContainer.pop();
-        currentContainer.peek().addChild(sel);
+        TagSelector tagSelector = (TagSelector) currentContainer.pop();
+        currentContainer.peek().addChild(tagSelector);
     }
 
     @Override
@@ -103,8 +108,8 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void exitClassSelector(ICSSParser.ClassSelectorContext ctx) {
-        ClassSelector sel = (ClassSelector) currentContainer.pop();
-        currentContainer.peek().addChild(sel);
+        ClassSelector classSelector = (ClassSelector) currentContainer.pop();
+        currentContainer.peek().addChild(classSelector);
     }
 
     @Override
@@ -114,8 +119,8 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void exitIdSelector(ICSSParser.IdSelectorContext ctx) {
-        IdSelector sel = (IdSelector) currentContainer.pop();
-        currentContainer.peek().addChild(sel);
+        IdSelector idSelector = (IdSelector) currentContainer.pop();
+        currentContainer.peek().addChild(idSelector);
     }
 
     @Override
@@ -126,25 +131,25 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void exitDeclaration(ICSSParser.DeclarationContext ctx) {
-        Declaration decl = (Declaration) currentContainer.pop();
-        if(exprStack.isEmpty()){
+        Declaration declaration = (Declaration) currentContainer.pop();
+        if (exprStack.isEmpty()) {
             throw new RuntimeException("Expression ontbreekt in declaration op regel " + ctx.getStart().getLine());
         }
-        decl.expression = exprStack.pop();
-        currentContainer.peek().addChild(decl);
+        declaration.expression = exprStack.pop();
+        currentContainer.peek().addChild(declaration);
     }
 
     @Override
     public void exitProperty(ICSSParser.PropertyContext ctx) {
-        Declaration decl = (Declaration) currentContainer.peek();
-        decl.property = new PropertyName(ctx.getText());
+        Declaration declaration = (Declaration) currentContainer.peek();
+        declaration.property = new PropertyName(ctx.getText());
     }
 
     @Override
     public void exitPixelLiteral(ICSSParser.PixelLiteralContext ctx) {
-        String t = ctx.getText();
-        int n = Integer.parseInt(t.substring(0, t.length() - 2));
-        exprStack.push(new PixelLiteral(n));
+        String text = ctx.getText();
+        int value = Integer.parseInt(text.substring(0, text.length() - 2));
+        exprStack.push(new PixelLiteral(value));
     }
 
     @Override
@@ -174,31 +179,31 @@ public class ASTListener extends ICSSBaseListener {
 
     @Override
     public void exitAddOperation(ICSSParser.AddOperationContext ctx) {
-        Expression rhs = exprStack.pop();
-        Expression lhs = exprStack.pop();
+        Expression right = exprStack.pop();
+        Expression left = exprStack.pop();
         AddOperation op = new AddOperation();
-        op.lhs = lhs;
-        op.rhs = rhs;
+        op.lhs = left;
+        op.rhs = right;
         exprStack.push(op);
     }
 
     @Override
     public void exitSubOperation(ICSSParser.SubOperationContext ctx) {
-        Expression rhs = exprStack.pop();
-        Expression lhs = exprStack.pop();
+        Expression right = exprStack.pop();
+        Expression left = exprStack.pop();
         SubtractOperation op = new SubtractOperation();
-        op.lhs = lhs;
-        op.rhs = rhs;
+        op.lhs = left;
+        op.rhs = right;
         exprStack.push(op);
     }
 
     @Override
     public void exitMulOperation(ICSSParser.MulOperationContext ctx) {
-        Expression rhs = exprStack.pop();
-        Expression lhs = exprStack.pop();
+        Expression right = exprStack.pop();
+        Expression left = exprStack.pop();
         MultiplyOperation op = new MultiplyOperation();
-        op.lhs = lhs;
-        op.rhs = rhs;
+        op.lhs = left;
+        op.rhs = right;
         exprStack.push(op);
     }
 
@@ -214,7 +219,6 @@ public class ASTListener extends ICSSBaseListener {
     @Override
     public void exitIfClause(ICSSParser.IfClauseContext ctx) {
         IfClause ifClause = (IfClause) currentContainer.pop();
-        ifClause.conditionalExpression = currentCon;
         ifStack.pop();
         currentContainer.peek().addChild(ifClause);
     }
@@ -232,23 +236,20 @@ public class ASTListener extends ICSSBaseListener {
     }
 
     @Override
-    public void enterCondition (ICSSParser.ConditionContext ctx){
-
-    }
-
-    @Override
-    public void exitCondition (ICSSParser.ConditionContext ctx) {
+    public void exitCondition(ICSSParser.ConditionContext ctx) {
         if (exprStack.isEmpty()) {
             throw new RuntimeException("Condition expression empty" + ctx.getStart().getLine());
-
         }
-        currentCon = exprStack.pop();
+
+        IfClause owner = ifStack.peek();
+        owner.conditionalExpression = exprStack.pop();
     }
+
     @Override
     public void exitPercentageLiteral(ICSSParser.PercentageLiteralContext ctx) {
-        String t = ctx.getText();
-        int n = Integer.parseInt(t.substring(0, t.length() - 1));
-        exprStack.push(new PercentageLiteral(n));
+        String text = ctx.getText();
+        int value = Integer.parseInt(text.substring(0, text.length() - 1));
+        exprStack.push(new PercentageLiteral(value));
     }
 
 }
